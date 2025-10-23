@@ -27,6 +27,11 @@ const authRoutes = require('./routes/authRoutes');
 // This tells the server that any URL starting with /api/auth
 // should be handled by the 'authRoutes' file.
 app.use('/api/auth', authRoutes);
+// Import user routes
+const userRoutes = require('./routes/userRoutes');
+
+// Use user routes
+app.use('/api/users', userRoutes);
 app.get('/api/test', (req, res) => {
   res.json({ message: 'Hello from the backend! 👋' });
 });
