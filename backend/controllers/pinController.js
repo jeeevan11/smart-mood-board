@@ -5,48 +5,39 @@ const Pin = require('../models/pinModel');
 // @access  Private
 const createPin = async (req, res) => {
   try {
-    // 1. Image URL is provided by Multer/Cloudinary after upload
     const imageUrl = req.file.path; 
-
-    // 2. The user is provided by the 'protect' middleware (authMiddleware)
     const user = req.user._id;
-
-    // 3. Description is taken from the body, if the user provides one (optional)
     const { description } = req.body; 
 
     if (!imageUrl) {
       return res.status(400).json({ message: 'Image upload failed. No file path found.' });
     }
 
-    // 4. Create the new pin document in MongoDB
     const pin = await Pin.create({
       user,
       imageUrl,
       description: description || 'No description provided.',
     });
 
-    // 5. Send back the new pin to the frontend
     res.status(201).json({
       message: 'Pin created and image uploaded successfully',
       pin,
     });
   } catch (error) {
     console.error(error);
-    // Cloudinary errors often show up here
     res.status(500).json({ message: 'Server error during pin creation.' });
   }
 };
 
 
-// @desc    Get all Pins (for the main feed) 👈 MERN-9 Function
+// @desc    Get all Pins (for the main feed) 
 // @route   GET /api/pins
 // @access  Public
 const getAllPins = async (req, res) => {
   try {
-    // Find all pins and populate the 'user' field with only username and email
     const pins = await Pin.find({})
       .populate('user', 'username email') 
-      .sort({ createdAt: -1 }); // Show newest pins first
+      .sort({ createdAt: -1 }); 
 
     res.status(200).json(pins);
   } catch (error) {
@@ -55,8 +46,83 @@ const getAllPins = async (req, res) => {
   }
 };
 
-// 👇 FIX: Export both functions once at the end
+
+// @desc    Like a pin (or unlike)
+// @route   PUT /api/pins/like/:id
+// @access  Private
+const likePin = async (req, res) => {
+  const pinId = req.params.id;
+  const userId = req.user._id;
+
+  try {
+    const pin = await Pin.findById(pinId);
+    if (!pin) {
+      return res.status(404).json({ message: 'Pin not found.' });
+    }
+
+    // Check if the user has already liked the pin
+    if (pin.likes.includes(userId)) {
+      // UNLIKE
+      pin.likes.pull(userId);
+      await pin.save();
+      return res.status(200).json({ message: 'Pin unliked successfully.', isLiked: false });
+    } else {
+      // LIKE
+      pin.likes.push(userId);
+      await pin.save();
+      return res.status(200).json({ message: 'Pin liked successfully.', isLiked: true });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error during like action.' });
+  }
+};
+
+
+// @desc    Add a comment to a pin
+// @route   POST /api/pins/comment/:id
+// @access  Private
+const commentPin = async (req, res) => {
+  const pinId = req.params.id;
+  const userId = req.user._id;
+  const { text } = req.body;
+
+  if (!text) {
+    return res.status(400).json({ message: 'Comment text is required.' });
+  }
+
+  try {
+    const pin = await Pin.findById(pinId);
+    if (!pin) {
+      return res.status(404).json({ message: 'Pin not found.' });
+    }
+
+    const newComment = {
+      user: userId,
+      text: text,
+    };
+
+    pin.comments.push(newComment);
+    await pin.save();
+
+    // Re-fetch and populate the last comment to send back to the user
+    const savedPin = await Pin.findById(pinId).populate('comments.user', 'username');
+
+    res.status(201).json({ 
+        message: 'Comment added successfully.', 
+        comment: savedPin.comments[savedPin.comments.length - 1] 
+    });
+
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error during comment action.' });
+  }
+};
+
+
 module.exports = {
   createPin,
-  getAllPins, 
+  getAllPins,
+  likePin,
+  commentPin,
 };
