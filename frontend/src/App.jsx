@@ -405,7 +405,7 @@ const App = () => {
                 <form onSubmit={handleUpload} className="space-y-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">Image File (Required)</label>
-                        <input type="file" accept="image/*" onChange={(e) => {setUploadFile(e.target.files[0]); setMessage('');}} required className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"/>
+                        <input type="file" accept="image/*" onChange={(e) => { setUploadFile(e.target.files[0]); setMessage(''); }} required className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"/>
                         {uploadFile && <p className="mt-2 text-xs text-green-600 flex items-center"><CheckCircle size={12} className="mr-1" />{uploadFile.name}</p>}
                     </div>
                     <div>
