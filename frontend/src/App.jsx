@@ -9,7 +9,7 @@ function App() {
   // This 'useEffect' hook runs once when the component first loads
   useEffect(() => {
     // We make a GET request to our backend's test route
-    axios.get('http://localhost:5001/api/test')
+    axios.get('http://localhost:8080/api/test')
       .then((response) => {
         // If successful, we save the message in our state
         setMessage(response.data.message);

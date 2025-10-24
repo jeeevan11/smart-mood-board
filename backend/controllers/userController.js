@@ -4,20 +4,15 @@ const User = require('../models/userModel');
 // @route   PUT /api/users/follow/:id
 // @access  Private (Needs JWT)
 const followUser = async (req, res) => {
-  // The user to be followed is in req.params.id
   const userToFollowId = req.params.id;
-  // The user doing the following is in req.user._id (from the protect middleware)
   const currentUserId = req.user._id;
 
-  // Prevent user from following themselves
   if (userToFollowId === currentUserId.toString()) {
     return res.status(400).json({ message: 'You cannot follow yourself.' });
   }
 
   try {
-    // 1. Find the user to follow
     const userToFollow = await User.findById(userToFollowId);
-    // 2. Find the current user
     const currentUser = await User.findById(currentUserId);
 
     if (!userToFollow) {
@@ -29,13 +24,26 @@ const followUser = async (req, res) => {
       return res.status(400).json({ message: 'You already follow this user.' });
     }
 
-    // Add to current user's following list
+    // Update database records
     currentUser.following.push(userToFollowId);
-    // Add to followed user's followers list
     userToFollow.followers.push(currentUserId);
 
     await currentUser.save();
     await userToFollow.save();
+
+    // 💡 SOCKET.IO NOTIFICATION LOGIC
+    const io = req.app.get('io');
+    const userSocketMap = req.app.get('userSocketMap');
+    const targetSocketId = userSocketMap[userToFollowId];
+
+    if (targetSocketId) {
+      io.to(targetSocketId).emit('newNotification', {
+        type: 'follow',
+        message: `${currentUser.username} is now following you!`,
+        username: currentUser.username,
+      });
+      console.log(`Follow notification emitted to ${userToFollow.username}`);
+    } 
 
     res.status(200).json({ message: 'User followed successfully.' });
 
@@ -54,18 +62,15 @@ const unfollowUser = async (req, res) => {
   const currentUserId = req.user._id;
 
   try {
-    // 1. Find the user to unfollow
     const userToUnfollow = await User.findById(userToUnfollowId);
-    // 2. Find the current user
     const currentUser = await User.findById(currentUserId);
 
     if (!userToUnfollow) {
       return res.status(404).json({ message: 'User not found.' });
     }
 
-    // Remove from current user's following list
+    // Update database records
     currentUser.following.pull(userToUnfollowId);
-    // Remove from unfollowed user's followers list
     userToUnfollow.followers.pull(currentUserId);
 
     await currentUser.save();

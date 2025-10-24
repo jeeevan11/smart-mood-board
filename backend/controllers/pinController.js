@@ -55,22 +55,41 @@ const likePin = async (req, res) => {
   const userId = req.user._id;
 
   try {
-    const pin = await Pin.findById(pinId);
+    const pin = await Pin.findById(pinId).populate('user', 'username'); 
     if (!pin) {
       return res.status(404).json({ message: 'Pin not found.' });
     }
 
-    // Check if the user has already liked the pin
-    if (pin.likes.includes(userId)) {
-      // UNLIKE
+    // Logic to LIKE
+    if (!pin.likes.includes(userId)) {
+      pin.likes.push(userId);
+      await pin.save();
+      
+      // 💡 SOCKET.IO NOTIFICATION LOGIC
+      const io = req.app.get('io');
+      const userSocketMap = req.app.get('userSocketMap');
+
+      if (pin.user._id.toString() !== userId.toString()) {
+        const targetSocketId = userSocketMap[pin.user._id];
+        if (targetSocketId) {
+            io.to(targetSocketId).emit('newNotification', {
+                type: 'like',
+                message: `${req.user.username} liked your pin!`,
+                pinId: pin._id,
+            });
+            console.log(`Like notification emitted to Pin Owner.`);
+        }
+      }
+      // 💡 END NEW LOGIC
+      
+      return res.status(200).json({ message: 'Pin liked successfully.', isLiked: true });
+    } 
+    
+    // Logic to UNLIKE
+    else {
       pin.likes.pull(userId);
       await pin.save();
       return res.status(200).json({ message: 'Pin unliked successfully.', isLiked: false });
-    } else {
-      // LIKE
-      pin.likes.push(userId);
-      await pin.save();
-      return res.status(200).json({ message: 'Pin liked successfully.', isLiked: true });
     }
   } catch (error) {
     console.error(error);
@@ -92,7 +111,7 @@ const commentPin = async (req, res) => {
   }
 
   try {
-    const pin = await Pin.findById(pinId);
+    const pin = await Pin.findById(pinId).populate('user', 'username'); 
     if (!pin) {
       return res.status(404).json({ message: 'Pin not found.' });
     }
@@ -105,8 +124,26 @@ const commentPin = async (req, res) => {
     pin.comments.push(newComment);
     await pin.save();
 
-    // Re-fetch and populate the last comment to send back to the user
+    // Re-fetch and populate the last comment
     const savedPin = await Pin.findById(pinId).populate('comments.user', 'username');
+    
+    // 💡 SOCKET.IO NOTIFICATION LOGIC
+    const io = req.app.get('io');
+    const userSocketMap = req.app.get('userSocketMap');
+
+    if (pin.user._id.toString() !== userId.toString()) {
+        const targetSocketId = userSocketMap[pin.user._id];
+        if (targetSocketId) {
+            io.to(targetSocketId).emit('newNotification', {
+                type: 'comment',
+                message: `${req.user.username} commented on your pin!`,
+                pinId: pin._id,
+                comment: text,
+            });
+            console.log(`Comment notification emitted to Pin Owner.`);
+        }
+    }
+    // 💡 END NEW LOGIC
 
     res.status(201).json({ 
         message: 'Comment added successfully.', 
