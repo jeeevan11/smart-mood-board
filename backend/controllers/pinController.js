@@ -38,7 +38,25 @@ const createPin = async (req, res) => {
 };
 
 
-// We will add the other CRUD functions (read, delete) here later.
+// @desc    Get all Pins (for the main feed) 👈 MERN-9 Function
+// @route   GET /api/pins
+// @access  Public
+const getAllPins = async (req, res) => {
+  try {
+    // Find all pins and populate the 'user' field with only username and email
+    const pins = await Pin.find({})
+      .populate('user', 'username email') 
+      .sort({ createdAt: -1 }); // Show newest pins first
+
+    res.status(200).json(pins);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: 'Server error fetching pins.' });
+  }
+};
+
+// 👇 FIX: Export both functions once at the end
 module.exports = {
   createPin,
+  getAllPins, 
 };
